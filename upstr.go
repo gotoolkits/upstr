@@ -6,6 +6,7 @@ import (
 	"github.com/gotoolkits/upstr/common"
 	"github.com/gotoolkits/upstr/consul"
 	"github.com/labstack/echo"
+	"github.com/labstack/echo/middleware"
 )
 
 const (
@@ -53,10 +54,24 @@ func main() {
 		common.Log.Infoln("Load configs from file:", sHost, cHost, cPth, wPth)
 	}
 
+	fn := func(username, password string, c echo.Context) (bool, error) {
+		if username == "wld" && password == "devops" {
+			return true, nil
+		}
+		return false, nil
+	}
+
 	e := echo.New()
+	// e.Use(middleware.BasicAuth(func(username, password string, c echo.Context) (bool, error) {
+	// 	if username == "wld" && password == "devops" {
+	// 		return true, nil
+	// 	}
+	// 	return false, nil
+	// }))
+
 	e.GET("/", info)
 	e.GET("list", list)
-	e.GET("reload", reload)
+	e.GET("reload", reload, middleware.BasicAuth(fn))
 	e.GET("status", status)
 
 	e.HideBanner = true
