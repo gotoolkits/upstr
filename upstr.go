@@ -55,7 +55,7 @@ func main() {
 	}
 
 	fn := func(username, password string, c echo.Context) (bool, error) {
-		if username == "wld" && password == "devops" {
+		if username == "test" && password == "test123" {
 			return true, nil
 		}
 		return false, nil
@@ -63,7 +63,7 @@ func main() {
 
 	e := echo.New()
 	// e.Use(middleware.BasicAuth(func(username, password string, c echo.Context) (bool, error) {
-	// 	if username == "wld" && password == "devops" {
+	// 	if username == "xxxx" && password == "xxxxxx" {
 	// 		return true, nil
 	// 	}
 	// 	return false, nil
