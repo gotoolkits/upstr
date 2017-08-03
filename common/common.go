@@ -118,7 +118,7 @@ func Execute(c *exec.Cmd) ([]byte, error) {
 
 }
 
-func SetUpstream(un string, path string) error {
+func SetUpstream(un, path, host string) error {
 
 	var line, svrsFomat, cmdArgs string
 	var err error
@@ -127,7 +127,7 @@ func SetUpstream(un string, path string) error {
 		path = ORANGE_DEFAULT_CONF
 	}
 
-	svrStr, err := consul.GetSvrList("", un)
+	svrStr, err := consul.GetSvrList(host, un)
 
 	if err != nil {
 		Log.Errorln("Get Consul Service list failed !")

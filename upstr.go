@@ -69,9 +69,9 @@ func main() {
 func info(c echo.Context) error {
 
 	u := &Info{
-		WorkPath:   common.ORANGE_DEFAULT_PATH,
-		ConfigPath: common.ORANGE_DEFAULT_CONF,
-		Consul:     consul.DEFUALT_HOST,
+		WorkPath:   wPth,
+		ConfigPath: cPth,
+		Consul:     cHost,
 		KvPath:     consul.DEFUALT_KV_PATH,
 		UpstremNum: uNum,
 		Updated:    updated,
@@ -102,7 +102,7 @@ func reload(c echo.Context) error {
 	for _, k := range kv {
 		if ok := common.UpstrExists(cfMap, k); !ok {
 			common.Log.Infoln("Find new upstream is :", k)
-			err := common.SetUpstream(k, cPth)
+			err := common.SetUpstream(k, cPth, cHost)
 			if err != nil {
 				common.Log.Errorln("Update the", k, "upstream failed", err)
 				errCount++
