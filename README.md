@@ -14,7 +14,7 @@
 ## API接口
 
  >  接口： /    
- >  方法： Get
+ >  方法： Get  
  >  说明： 返回系统info状态信息  
 
      {
@@ -29,7 +29,7 @@
       }
 
  >  接口： /list   
- >  方法： Get
+ >  方法： Get     
  >  说明： 返回当前Nginx服务已配置的upstream列表
 
      {
@@ -49,7 +49,7 @@
 
 
  >  接口： /reload   
- >  方法： Get
+ >  方法： Get      
  >  说明： 拉取KV配置更新upstream，Reload配置
 
     {
@@ -60,7 +60,7 @@
     }
 
  >  接口： /status   
- >  方法： Get
+ >  方法： Get    
  >  说明： 获取upstr服务自身状态，可用于监控
 
     ok
