@@ -1,0 +1,12 @@
+{
+  "setting": {
+      "port":"18083" 
+  },
+  "consul":{
+      "host":"192.168.20.2:8500"
+  },
+ "orange":{
+     "work_path":"/usr/local/bin",
+     "config_path":"/usr/local/orange/conf/nginx.conf" 
+  }
+}
