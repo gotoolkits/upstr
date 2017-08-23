@@ -1,9 +1,9 @@
 {
   "setting": {
-      "port":"18083" 
+      "port":"18082" 
   },
   "consul":{
-      "host":"192.168.20.2:8500"
+      "host":"192.168.251.4:8500"
   },
  "orange":{
      "work_path":"/usr/local/bin",

@@ -3,18 +3,16 @@ package consul
 import (
 	"encoding/json"
 	"net/http"
+	"os"
 	"strconv"
+	"strings"
 
 	"github.com/sirupsen/logrus"
 	//com "github.com/gotoolkits/upstr/common"
 )
 
 const (
-
-	//http://192.168.20.2:8500/v1/catalog/service/orange
 	API_GET_SERVICE = "/v1/catalog/service/"
-	//API_SCHEME      = "http"
-	//DEFUALT_HOST    = "192.168.20.2:8500"
 )
 
 type CatalogService struct {
@@ -37,7 +35,11 @@ type CatalogService struct {
 func GetSvrList(host string, sn string) ([]string, error) {
 
 	if host == "" {
-		host = DEFUALT_HOST
+		host = os.Getenv("CONSUL_ADDR")
+	}
+
+	if !strings.Contains(host, ":") {
+		host = host + ":" + "8500"
 	}
 
 	url := API_SCHEME + "://" + host + API_GET_SERVICE + sn
@@ -45,7 +47,13 @@ func GetSvrList(host string, sn string) ([]string, error) {
 	resp, err := http.Get(url)
 	if err != nil {
 		logrus.Errorln(err)
-		return nil, err
+
+		//try one time again
+		resp, err = http.Get(url)
+		if err != nil {
+			return nil, err
+		}
+
 	}
 	defer resp.Body.Close()
 

@@ -3,6 +3,7 @@ package consul
 import (
 	"io/ioutil"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/sirupsen/logrus"
@@ -11,23 +12,29 @@ import (
 const (
 	API_GET_KV      = "/v1/kv/"
 	API_SCHEME      = "http"
-	DEFUALT_HOST    = "192.168.20.2:8500"
 	DEFUALT_KV_PATH = "paas/ngx/upstream_name?raw"
 )
 
 func GetUpstrKV(host string) []string {
 
 	if host == "" {
-		host = DEFUALT_HOST
+		host = os.Getenv("CONSUL_ADDR")
 	}
 
-	//http://192.168.20.2:8500/v1/kv/paas/ngx/upstream_name?raw
+	if !strings.Contains(host, ":") {
+		host = host + ":" + "8500"
+	}
+
 	url := API_SCHEME + "://" + host + API_GET_KV + DEFUALT_KV_PATH
 
 	resp, err := http.Get(url)
 	if err != nil {
 		logrus.Errorln(err)
-		return nil
+		//try again
+		resp, err = http.Get(url)
+		if err != nil {
+			return nil
+		}
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)

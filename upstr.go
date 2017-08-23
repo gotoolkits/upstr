@@ -1,12 +1,15 @@
 package main
 
 import (
+	"errors"
+	"io/ioutil"
 	"net/http"
+	"os"
+	"strings"
 
 	"github.com/gotoolkits/upstr/common"
 	"github.com/gotoolkits/upstr/consul"
 	"github.com/labstack/echo"
-	"github.com/labstack/echo/middleware"
 )
 
 const (
@@ -43,23 +46,29 @@ func main() {
 	if err != nil {
 		common.Log.Warningln("Load the configs failed ,Using the default configs!", err)
 		sHost = DEFAULT_PORT
-		cHost = consul.DEFUALT_HOST
+		cHost = os.Getenv("CONSUL_ADDR")
 		cPth = common.ORANGE_DEFAULT_CONF
 		wPth = common.ORANGE_DEFAULT_PATH
 	} else {
 		sHost = jc.SrvPort
-		cHost = jc.Host
+		cHost = os.Getenv("CONSUL_ADDR")
 		cPth = jc.ConfigPath
 		wPth = jc.WorkPath
 		common.Log.Infoln("Load configs from file:", sHost, cHost, cPth, wPth)
 	}
 
-	fn := func(username, password string, c echo.Context) (bool, error) {
-		if username == "test" && password == "test123" {
-			return true, nil
-		}
-		return false, nil
+	//init upstream on the start
+	err = initUpstr()
+	if err != nil {
+		common.Log.Errorln("init upstream failed,please check the error logs")
 	}
+
+	// fn := func(username, password string, c echo.Context) (bool, error) {
+	// 	if username == "test" && password == "test123" {
+	// 		return true, nil
+	// 	}
+	// 	return false, nil
+	// }
 
 	e := echo.New()
 	// e.Use(middleware.BasicAuth(func(username, password string, c echo.Context) (bool, error) {
@@ -71,7 +80,8 @@ func main() {
 
 	e.GET("/", info)
 	e.GET("list", list)
-	e.GET("reload", reload, middleware.BasicAuth(fn))
+	//e.GET("reload", reload, middleware.BasicAuth(fn))
+	e.GET("reload", reload)
 	e.GET("status", status)
 
 	e.HideBanner = true
@@ -86,7 +96,7 @@ func info(c echo.Context) error {
 	u := &Info{
 		WorkPath:   wPth,
 		ConfigPath: cPth,
-		Consul:     cHost,
+		Consul:     os.Getenv("CONSUL_ADDR"),
 		KvPath:     consul.DEFUALT_KV_PATH,
 		UpstremNum: uNum,
 		Updated:    updated,
@@ -101,33 +111,38 @@ func info(c echo.Context) error {
 func reload(c echo.Context) error {
 
 	var updateCount int
+	var errc int
+
 	//获取consul upstream kv
 	kv := consul.GetUpstrKV(cHost)
+
 	if len(kv) < 1 {
 		common.Log.Errorln("Get Consul KV Length is null!")
-		errCount++
-	}
-	//获取已存在的配置upstream列表
-	cfMap := common.GetList(cPth)
-	if len(cfMap) < 1 {
-		common.Log.Errorln("Get Nginx Upstream config Length is null!")
-		errCount++
-	}
-	//判断kv值对于存在的配置列表是否有更新，如果有更新配置将更新upstream配置
-	for _, k := range kv {
-		if ok := common.UpstrExists(cfMap, k); !ok {
-			common.Log.Infoln("Find new upstream is :", k)
-			err := common.SetUpstream(k, cPth, cHost)
-			if err != nil {
-				common.Log.Errorln("Update the", k, "upstream failed", err)
-				errCount++
+		errc++
+	} else {
+		//获取已存在的配置upstream列表
+		cfMap := common.GetList(cPth)
+		if len(cfMap) < 1 {
+			common.Log.Errorln("Get Nginx Upstream config Length is null!")
+			errc++
+		}
+		//判断kv值对于存在的配置列表是否有更新，如果有更新配置将更新upstream配置
+		for _, k := range kv {
+			if ok := common.UpstrExists(cfMap, k); !ok {
+				common.Log.Infoln("Find new upstream is :", k)
+				err := common.SetUpstream(k, cPth, cHost)
+				if err != nil {
+					common.Log.Errorln("Update the", k, "upstream failed", err)
+					errc++
+				}
+				common.Log.Infoln("Update the", k, "upstream successful")
+				updateCount++
 			}
-			common.Log.Infoln("Update the", k, "upstream successful")
-			updateCount++
 		}
 	}
 	//统计
 	updated = updated + updateCount
+	errCount = errCount + errc
 	updateTime = common.GetTime()
 
 	//重新reload服务,加重更新的
@@ -142,13 +157,14 @@ func reload(c echo.Context) error {
 			stat = "successful"
 		}
 	} else {
+		errc = 0
 		common.Log.Infoln("No need to update, configs is newest")
 		stat = "nothing to do"
 
 	}
 	o := &UpdateOut{
 		Re:          stat,
-		ErrCnt:      errCount,
+		ErrCnt:      errc,
 		UpdateConut: updateCount,
 		UpdateTime:  updateTime,
 	}
@@ -165,4 +181,50 @@ func list(c echo.Context) error {
 // Handler upstr self status
 func status(c echo.Context) error {
 	return c.String(http.StatusOK, "OK")
+}
+
+func initUpstr() error {
+
+	consulAddr := os.Getenv("CONSUL_ADDR")
+
+	if consulAddr == "" {
+
+		common.Log.Errorln("Get CONSUL_ADDR failed!")
+		return errors.New("get CONSUL_ADDR failed")
+
+	} else {
+
+		if !strings.Contains(consulAddr, ":") {
+			consulAddr = consulAddr + ":" + "8500"
+		}
+
+	}
+
+	//获取consul upstream kv names
+	UpstreamNames := consul.GetUpstrKV(consulAddr)
+	if len(UpstreamNames) < 1 {
+		common.Log.Errorln("Get Consul KV Length is null!")
+		return errors.New("get Consul KV Length is null")
+
+	}
+
+	//判断kv值对于存在的配置列表是否有更新，如果有更新配置将更新upstream配置
+	for _, k := range UpstreamNames {
+		err := common.SetUpstream(k, "", consulAddr)
+		if err != nil {
+			common.Log.Errorln("Update the", k, "upstream failed", err)
+			continue
+		}
+		common.Log.Infoln("Update the", k, "upstream successful")
+	}
+
+	status := []byte("ok")
+	err := ioutil.WriteFile("/tmp/CONSUL_INIT", status, 0644)
+
+	if err != nil {
+		common.Log.Errorln("Set Env CONSUL_INIT file", err)
+	}
+
+	return nil
+
 }
